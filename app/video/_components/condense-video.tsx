@@ -71,21 +71,28 @@ const CondenseVideo = () => {
 
   const load = async () => {
     const ffmpeg = ffmpegRef.current;
-    await ffmpeg.load({
-      coreURL: await toBlobURL(
-        `http://localhost:3000/download/ffmpeg-core.js`,
-        "text/javascript"
-      ),
-      wasmURL: await toBlobURL(
-        `http://localhost:3000/download/ffmpeg-core.wasm`,
-        "application/wasm"
-      ),
-    });
+    const baseURL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    try {
+      await ffmpeg.load({
+        coreURL: await toBlobURL(
+          `${baseURL}/ffmpeg/ffmpeg-core.js`,
+          "text/javascript"
+        ),
+        wasmURL: await toBlobURL(
+          `${baseURL}/ffmpeg/ffmpeg-core.wasm`,
+          "application/wasm"
+        ),
+      });
+    } catch (error) {
+      console.error('Failed to load FFmpeg:', error);
+      toast.error("Failed to load FFmpeg. Please try again or refresh the page.");
+    }
   };
 
   const loadWithToast = () => {
     toast.promise(load, {
-      loading: "Downloading necessary packages from FFmpeg for offline use.",
+      loading: "Downloading necessary packages from FFmpeg for use.",
       success: () => {
         return "All necessary file downloaded";
       },

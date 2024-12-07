@@ -1,5 +1,5 @@
 import { getFileExtension } from "./convert";
-import { VideoFormats, VideoInputSettings } from "./types";
+import { VideoFormats, VideoInputSettings, QualityType } from "./types";
 
 export const whatsappStatusCompressionCommand = (
   input: string,
@@ -18,7 +18,7 @@ export const whatsappStatusCompressionCommand = (
   "-b:a",
   "64k",
   "-movflags",
-  "faststart",
+  "+faststart",
   "-maxrate",
   "1000k",
   "-bufsize",
@@ -33,6 +33,8 @@ export const twitterCompressionCommand = (input: string, output: string) => [
   input,
   "-c:v",
   "libx264",
+  "-preset",
+  "veryfast",
   "-profile:v",
   "high",
   "-level:v",
@@ -44,15 +46,15 @@ export const twitterCompressionCommand = (input: string, output: string) => [
   "-c:a",
   "aac",
   "-b:a",
-  "192k",
+  "128k",
   "-movflags",
-  "faststart",
+  "+faststart",
   "-maxrate",
-  "5000k",
+  "4M",
   "-bufsize",
-  "5000k",
+  "8M",
   "-tune",
-  "film",
+  "fastdecode",
   output,
 ];
 
@@ -85,22 +87,33 @@ const getMP4toMP4Command = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const ffmpegCommand = [
+  const scale = videoSettings.quality === QualityType.High 
+    ? "scale=-2:720" 
+    : videoSettings.quality === QualityType.Medium 
+      ? "scale=-2:480" 
+      : "scale=-2:360";
+
+  return [
     "-i",
     input,
     "-c:v",
     "libx264",
-    "-crf",
-    "23",
     "-preset",
-    "medium",
+    "veryfast",
+    "-crf",
+    "28",
+    "-tune",
+    "fastdecode",
+    "-movflags",
+    "+faststart",
     "-c:a",
     "aac",
     "-b:a",
     "128k",
+    "-vf",
+    scale,
     output,
   ];
-  return ffmpegCommand;
 };
 
 const getMP4Command = (
@@ -108,11 +121,21 @@ const getMP4Command = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
+  const scale = videoSettings.quality === QualityType.High 
+    ? "scale=-2:720" 
+    : videoSettings.quality === QualityType.Medium 
+      ? "scale=-2:480" 
+      : "scale=-2:360";
+
   const ffmpegCommand = [
     "-i",
     input,
     "-c:v",
     "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "fastdecode",
     "-profile:v",
     "high",
     "-level:v",
@@ -122,34 +145,26 @@ const getMP4Command = (
     "-r",
     "30",
     "-maxrate",
-    "5000k",
+    "4M",
     "-bufsize",
-    "5000k",
-    "-tune",
-    "film",
+    "8M",
     "-ss",
     videoSettings.customStartTime.toString(),
     "-to",
     videoSettings.customEndTime.toString(),
-    "-q:v",
-    videoSettings.quality,
     "-crf",
-    "18",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-f",
-    videoSettings.videoType,
+    videoSettings.quality,
+    "-vf",
+    scale,
   ];
 
   if (!videoSettings.removeAudio) {
-    ffmpegCommand.push("-c:a", "aac", "-b:a", "192k", "-movflags", "faststart");
+    ffmpegCommand.push("-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart");
   } else {
     ffmpegCommand.push("-an");
   }
+  
   ffmpegCommand.push(output);
-
   return ffmpegCommand;
 };
 
@@ -158,21 +173,31 @@ const getMOVCommand = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const audioOptions = videoSettings.removeAudio ? [] : ["-c:a", "aac"];
-  const ffmpegCommand = [
+  const scale = videoSettings.quality === QualityType.High 
+    ? "-2:720" 
+    : videoSettings.quality === QualityType.Medium 
+      ? "-2:480" 
+      : "-2:360";
+
+  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
+  return [
     "-i",
     input,
     "-c:v",
     "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "fastdecode",
     "-crf",
     videoSettings.quality,
     ...audioOptions,
     "-vf",
-    `trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
+    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
+    "-movflags",
+    "+faststart",
     output,
   ];
-
-  return ffmpegCommand;
 };
 
 const getMKVCommand = (
@@ -180,21 +205,29 @@ const getMKVCommand = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const audioOptions = videoSettings.removeAudio ? [] : ["-c:a", "aac"];
-  const ffmpegCommand = [
+  const scale = videoSettings.quality === QualityType.High 
+    ? "-2:720" 
+    : videoSettings.quality === QualityType.Medium 
+      ? "-2:480" 
+      : "-2:360";
+
+  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
+  return [
     "-i",
     input,
     "-c:v",
     "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "fastdecode",
     "-crf",
     videoSettings.quality,
     ...audioOptions,
     "-vf",
-    `trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
+    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
     output,
   ];
-
-  return ffmpegCommand;
 };
 
 const getAVICommand = (
@@ -202,21 +235,29 @@ const getAVICommand = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const audioOptions = videoSettings.removeAudio ? [] : ["-c:a", "aac"];
-  const ffmpegCommand = [
+  const scale = videoSettings.quality === QualityType.High 
+    ? "-2:720" 
+    : videoSettings.quality === QualityType.Medium 
+      ? "-2:480" 
+      : "-2:360";
+
+  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
+  return [
     "-i",
     input,
     "-c:v",
     "libx264",
+    "-preset",
+    "veryfast",
+    "-tune",
+    "fastdecode",
     "-crf",
     videoSettings.quality,
     ...audioOptions,
     "-vf",
-    `trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
+    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
     output,
   ];
-
-  return ffmpegCommand;
 };
 
 const getFLVCommand = (

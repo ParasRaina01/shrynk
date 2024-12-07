@@ -31,20 +31,37 @@ export default async function convertFile(
   videoSettings: VideoInputSettings
 ): Promise<any> {
   const { file, fileName, fileType } = actionFile;
-  const output = removeFileExtension(fileName) + "." + videoSettings.videoType;
-  ffmpeg.writeFile(fileName, await fetchFile(file));
-  const command = videoSettings.twitterCompressionCommand
-    ? twitterCompressionCommand(fileName, output)
-    : videoSettings.whatsappStatusCompressionCommand
-    ? whatsappStatusCompressionCommand(fileName, output)
-    : customVideoCompressionCommand(fileName, output, videoSettings);
+  const timestamp = new Date().getTime();
+  const output = `${removeFileExtension(fileName)}_compressed_${timestamp}.${videoSettings.videoType}`;
+  
+  try {
+    await ffmpeg.writeFile(fileName, await fetchFile(file));
+    const command = videoSettings.twitterCompressionCommand
+      ? twitterCompressionCommand(fileName, output)
+      : videoSettings.whatsappStatusCompressionCommand
+      ? whatsappStatusCompressionCommand(fileName, output)
+      : customVideoCompressionCommand(fileName, output, videoSettings);
 
-  console.log(command.join(" "));
-  await ffmpeg.exec(command);
-  const data = await ffmpeg.readFile(output);
-  const blob = new Blob([data], { type: fileType.split("/")[0] });
-  const url = URL.createObjectURL(blob);
-  return { url, output, outputBlob: blob };
+    console.log(command.join(" "));
+    await ffmpeg.exec(command);
+    const data = await ffmpeg.readFile(output);
+    const blob = new Blob([data], { type: fileType.split("/")[0] });
+    const url = URL.createObjectURL(blob);
+    
+    await ffmpeg.deleteFile(fileName);
+    await ffmpeg.deleteFile(output);
+    
+    return { url, output, outputBlob: blob };
+  } catch (error) {
+    console.error('Conversion error:', error);
+    try {
+      await ffmpeg.deleteFile(fileName);
+      await ffmpeg.deleteFile(output);
+    } catch (e) {
+      console.error('Cleanup error:', e);
+    }
+    throw error;
+  }
 }
 
 export const formatTime = (seconds: number): string => {

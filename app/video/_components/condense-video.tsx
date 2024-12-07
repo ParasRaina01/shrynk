@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CustomDropZone } from "./custom-dropzone";
 import { acceptedVideoFiles } from "@/utils/formats";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileActions,
   QualityType,
@@ -14,23 +14,22 @@ import { VideoDisplay } from "./video-display";
 import { VideoInputDetails } from "./video-input-details";
 import { VideoTrim } from "./video-trim";
 import { VideoInputControl } from "./video-input-control";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { toBlobURL } from "@ffmpeg/util";
 import { toast } from "sonner";
 import convertFile from "@/utils/convert";
 import { VideoCondenseProgress } from "./video-condense-progress";
 import { VideoOutputDetails } from "./video-output-details";
+import { ffmpegService } from "./ffmpegService";
 
 const CondenseVideo = () => {
   const [videoFile, setVideoFile] = useState<FileActions>();
-  const [progress, setProgess] = useState<number>(0);
+  const [progress, setProgress] = useState<number>(0);
   const [time, setTime] = useState<{
     startTime?: Date;
     elapsedSeconds?: number;
   }>({ elapsedSeconds: 0 });
   const [status, setStatus] = useState<
-    "notStarted" | "converted" | "condensing"
-  >("notStarted");
+    "notStarted" | "converted" | "condensing" | "loading"
+  >("loading");
   const [videoSettings, setVideoSettings] = useState<VideoInputSettings>({
     quality: QualityType.High,
     videoType: VideoFormats.MP4,
@@ -40,6 +39,7 @@ const CondenseVideo = () => {
     twitterCompressionCommand: false,
     whatsappStatusCompressionCommand: false,
   });
+
   const handleUpload = (file: File) => {
     setVideoFile({
       fileName: file.name,
@@ -65,75 +65,66 @@ const CondenseVideo = () => {
     return () => clearInterval(timer);
   }, [time]);
 
-  const ffmpegRef = useRef(new FFmpeg());
+  useEffect(() => {
+    const initFFmpeg = async () => {
+      try {
+        await ffmpegService.load();
+        setStatus("notStarted");
+        toast.success("FFmpeg loaded successfully");
+      } catch (error) {
+        console.error("FFmpeg load error:", error);
+        toast.error("Failed to load video processing. Please refresh the page.");
+        setStatus("notStarted");
+      }
+    };
 
-  const disableDuringCompression = status === "condensing";
-
-  const load = async () => {
-    const ffmpeg = ffmpegRef.current;
-    const baseURL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-
-    try {
-      await ffmpeg.load({
-        coreURL: await toBlobURL(
-          `${baseURL}/ffmpeg/ffmpeg-core.js`,
-          "text/javascript"
-        ),
-        wasmURL: await toBlobURL(
-          `${baseURL}/ffmpeg/ffmpeg-core.wasm`,
-          "application/wasm"
-        ),
-      });
-    } catch (error) {
-      console.error('Failed to load FFmpeg:', error);
-      toast.error("Failed to load FFmpeg. Please try again or refresh the page.");
-    }
-  };
-
-  const loadWithToast = () => {
-    toast.promise(load, {
+    toast.promise(initFFmpeg(), {
       loading: "Downloading necessary packages from FFmpeg for use.",
-      success: () => {
-        return "All necessary file downloaded";
-      },
+      success: "All necessary files downloaded",
       error: "Error loading FFmpeg packages",
     });
-  };
+  }, []);
 
-  useEffect(() => loadWithToast(), []);
+  const disableDuringCompression = status === "condensing" || status === "loading";
 
   const condense = async () => {
-    if (!videoFile) return;
+    if (!videoFile || !ffmpegService.getInstance()) return;
+    
     try {
       setTime({ ...time, startTime: new Date() });
       setStatus("condensing");
-      ffmpegRef.current.on("progress", ({ progress: completion, time }) => {
+      
+      const ffmpeg = ffmpegService.getInstance()!;
+      ffmpeg.on("progress", ({ progress: completion }) => {
         const percentage = completion * 100;
-        setProgess(percentage);
+        setProgress(percentage);
       });
-      ffmpegRef.current.on("log", ({ message }) => {
+      ffmpeg.on("log", ({ message }) => {
         console.log(message);
       });
+
       const { url, output, outputBlob } = await convertFile(
-        ffmpegRef.current,
+        ffmpeg,
         videoFile,
         videoSettings
       );
+      
       setVideoFile({
         ...videoFile,
         url,
         output,
         outputBlob,
       });
+      
       setTime((oldTime) => ({ ...oldTime, startTime: undefined }));
       setStatus("converted");
-      setProgess(0);
+      setProgress(0);
     } catch (err) {
-      console.log(err);
+      console.error("Video processing error:", err);
       setStatus("notStarted");
-      setProgess(0);
+      setProgress(0);
       setTime({ elapsedSeconds: 0, startTime: undefined });
-      toast.error("Error condensing video");
+      toast.error("Error processing video. Please try again.");
     }
   };
 
@@ -154,6 +145,7 @@ const CondenseVideo = () => {
           <CustomDropZone
             handleUpload={handleUpload}
             acceptedFiles={acceptedVideoFiles}
+            disabled={disableDuringCompression}
           />
         )}
       </motion.div>
@@ -199,7 +191,8 @@ const CondenseVideo = () => {
                 <button
                   onClick={condense}
                   type="button"
-                  className="bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-zinc-700 via-zinc-950 to-zinc-950 rounded-lg text-white/90 relative px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-500 focus:ring-zinc-950 flex-shrink-0"
+                  disabled={disableDuringCompression}
+                  className="bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-zinc-700 via-zinc-950 to-zinc-950 rounded-lg text-white/90 relative px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-500 focus:ring-zinc-950 flex-shrink-0 disabled:opacity-50 w-full"
                 >
                   Condense
                 </button>
@@ -208,7 +201,7 @@ const CondenseVideo = () => {
             {status === "converted" && videoFile && (
               <VideoOutputDetails
                 timeTaken={time.elapsedSeconds}
-                videoFile={videoFile!}
+                videoFile={videoFile}
               />
             )}
           </div>

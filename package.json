@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node scripts/download-ffmpeg.js"
   },
   "dependencies": {
-    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.7",
+    "@ffmpeg/core": "^0.12.4",
     "@ffmpeg/util": "^0.12.1",
     "@radix-ui/react-icons": "^1.3.0",
     "@radix-ui/react-progress": "^1.1.0",

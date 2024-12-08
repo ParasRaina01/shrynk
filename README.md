@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shrynk - Client-Side Video Compression Tool
 
-## Getting Started
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-0.12-green)
 
-First, run the development server:
+Shrynk is a powerful, browser-based video compression tool that leverages WebAssembly and FFmpeg to perform efficient video compression entirely on the client side, ensuring complete privacy and eliminating the need for server uploads.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Client-Side Processing**: All video compression happens in your browser using WebAssembly
+- **Zero Server Upload**: Your videos never leave your device, ensuring complete privacy
+- **Multiple Compression Profiles**:
+  - Custom compression with quality control
+  - Twitter-optimized compression
+  - WhatsApp status optimization
+- **Advanced Video Controls**:
+  - Adjustable video quality (High/Medium/Low)
+  - Custom video trimming
+  - Audio removal option
+  - Multiple output formats (MP4, MKV, MOV, AVI)
+- **Real-Time Progress**: Live compression progress tracking
+- **Responsive UI**: Beautiful, modern interface built with Tailwind CSS
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Technology Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**: Next.js 14, TypeScript, React
+- **Video Processing**: FFmpeg WebAssembly
+- **Styling**: Tailwind CSS, Framer Motion
+- **UI Components**: Radix UI
+- **State Management**: React Hooks
+- **File Handling**: React Dropzone
 
-## Learn More
+## 🚀 Getting Started
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/shrynk.git
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 💡 Usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Drop or select your video file
+2. Choose compression settings:
+   - Select quality level
+   - Choose output format
+   - Set trim points (optional)
+   - Toggle audio removal
+3. Click "Condense" to start compression
+4. Download the compressed video
+
+## ⚙️ Technical Details
+
+- Uses FFmpeg.wasm for video processing
+- Implements efficient memory management
+- Automatic quality-based resolution scaling
+- Optimized encoding presets for faster processing
+- Cross-browser compatibility with modern browsers
+
+## 🔒 Privacy
+
+- All processing happens locally in the browser
+- No video data is ever sent to any server
+- No analytics or tracking implemented
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

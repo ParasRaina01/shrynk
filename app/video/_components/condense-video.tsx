@@ -70,7 +70,6 @@ const CondenseVideo = () => {
       try {
         await ffmpegService.load();
         setStatus("notStarted");
-        toast.success("FFmpeg loaded successfully");
       } catch (error) {
         console.error("FFmpeg load error:", error);
         toast.error("Failed to load video processing. Please refresh the page.");
@@ -78,11 +77,15 @@ const CondenseVideo = () => {
       }
     };
 
-    toast.promise(initFFmpeg(), {
-      loading: "Downloading necessary packages from FFmpeg for use.",
-      success: "All necessary files downloaded",
-      error: "Error loading FFmpeg packages",
-    });
+    if (!ffmpegService.getInstance()) {
+      toast.promise(initFFmpeg(), {
+        loading: "Downloading necessary packages from FFmpeg for use.",
+        success: "All necessary files downloaded",
+        error: "Error loading FFmpeg packages",
+      });
+    } else {
+      initFFmpeg();
+    }
   }, []);
 
   const disableDuringCompression = status === "condensing" || status === "loading";

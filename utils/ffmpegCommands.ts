@@ -1,6 +1,30 @@
 import { getFileExtension } from "./convert";
 import { VideoFormats, VideoInputSettings, QualityType } from "./types";
 
+// Base compression parameters optimized for compression and reasonable speed
+const getBaseParams = () => [
+  "-preset",
+  "veryfast", // Balance between speed and compression
+  "-tune",
+  "film", // Better for general video content
+  "-movflags",
+  "+faststart",
+  "-profile:v",
+  "high",
+  "-level",
+  "4.0",
+  "-pix_fmt",
+  "yuv420p",
+  "-maxrate",
+  "1500k",
+  "-bufsize",
+  "2000k",
+  "-threads",
+  "0", // Use all available threads
+  "-q:v",
+  "1" // Maximum quality compression
+];
+
 export const whatsappStatusCompressionCommand = (
   input: string,
   output: string
@@ -9,22 +33,20 @@ export const whatsappStatusCompressionCommand = (
   input,
   "-c:v",
   "libx264",
-  "-preset",
-  "veryfast",
+  ...getBaseParams(),
   "-crf",
-  "35",
+  "32", // Higher CRF for more compression
+  "-vf",
+  "scale=w='if(gt(iw,480),480,iw)':h='if(gt(ih,480),480,ih)':force_original_aspect_ratio=decrease",
   "-c:a",
   "aac",
   "-b:a",
-  "64k",
-  "-movflags",
-  "+faststart",
-  "-maxrate",
-  "1000k",
-  "-bufsize",
-  "1000k",
-  "-fs",
-  "9M",
+  "24k", // Lower audio bitrate
+  "-ac",
+  "1",
+  "-ar",
+  "22050", // Lower audio sampling rate
+  "-y",
   output,
 ];
 
@@ -33,28 +55,20 @@ export const twitterCompressionCommand = (input: string, output: string) => [
   input,
   "-c:v",
   "libx264",
-  "-preset",
-  "veryfast",
-  "-profile:v",
-  "high",
-  "-level:v",
-  "4.2",
-  "-pix_fmt",
-  "yuv420p",
-  "-r",
+  ...getBaseParams(),
+  "-crf",
   "30",
+  "-vf",
+  "scale=w='if(gt(iw,720),720,iw)':h='if(gt(ih,720),720,ih)':force_original_aspect_ratio=decrease",
   "-c:a",
   "aac",
   "-b:a",
-  "128k",
-  "-movflags",
-  "+faststart",
-  "-maxrate",
-  "4M",
-  "-bufsize",
-  "8M",
-  "-tune",
-  "fastdecode",
+  "32k",
+  "-ac",
+  "1",
+  "-ar",
+  "22050",
+  "-y",
   output,
 ];
 
@@ -77,7 +91,7 @@ export const customVideoCompressionCommand = (
       case VideoFormats.MOV:
         return getMOVCommand(input, output, videoSettings);
       default:
-        return ["-i", input, output];
+        return getMP4Command(input, output, videoSettings);
     }
   }
 };
@@ -87,31 +101,41 @@ const getMP4toMP4Command = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const scale = videoSettings.quality === QualityType.High 
-    ? "scale=-2:720" 
-    : videoSettings.quality === QualityType.Medium 
-      ? "scale=-2:480" 
-      : "scale=-2:360";
+  const getScale = (quality: QualityType) => {
+    const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
+    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+  };
+
+  const getCRF = (quality: QualityType) => {
+    switch(quality) {
+      case QualityType.High:
+        return "28";
+      case QualityType.Medium:
+        return "30";
+      default:
+        return "32";
+    }
+  };
 
   return [
     "-i",
     input,
     "-c:v",
     "libx264",
-    "-preset",
-    "veryfast",
+    ...getBaseParams(),
     "-crf",
-    "28",
-    "-tune",
-    "fastdecode",
-    "-movflags",
-    "+faststart",
+    getCRF(videoSettings.quality),
+    "-vf",
+    getScale(videoSettings.quality),
     "-c:a",
     "aac",
     "-b:a",
-    "128k",
-    "-vf",
-    scale,
+    "32k",
+    "-ac",
+    "1",
+    "-ar",
+    "22050",
+    "-y",
     output,
   ];
 };
@@ -121,163 +145,92 @@ const getMP4Command = (
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const scale = videoSettings.quality === QualityType.High 
-    ? "scale=-2:720" 
-    : videoSettings.quality === QualityType.Medium 
-      ? "scale=-2:480" 
-      : "scale=-2:360";
+  const getScale = (quality: QualityType) => {
+    const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
+    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+  };
+
+  const getCRF = (quality: QualityType) => {
+    switch(quality) {
+      case QualityType.High:
+        return "28";
+      case QualityType.Medium:
+        return "30";
+      default:
+        return "32";
+    }
+  };
 
   const ffmpegCommand = [
-    "-i",
-    input,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-tune",
-    "fastdecode",
-    "-profile:v",
-    "high",
-    "-level:v",
-    "4.2",
-    "-pix_fmt",
-    "yuv420p",
-    "-r",
-    "30",
-    "-maxrate",
-    "4M",
-    "-bufsize",
-    "8M",
     "-ss",
     videoSettings.customStartTime.toString(),
-    "-to",
-    videoSettings.customEndTime.toString(),
+    "-i",
+    input,
+    "-t",
+    (videoSettings.customEndTime - videoSettings.customStartTime).toString(),
+    "-c:v",
+    "libx264",
+    ...getBaseParams(),
     "-crf",
-    videoSettings.quality,
+    getCRF(videoSettings.quality),
     "-vf",
-    scale,
+    getScale(videoSettings.quality),
   ];
 
   if (!videoSettings.removeAudio) {
-    ffmpegCommand.push("-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart");
+    ffmpegCommand.push(
+      "-c:a", "aac",
+      "-b:a", "32k",
+      "-ac", "1",
+      "-ar", "22050"
+    );
   } else {
     ffmpegCommand.push("-an");
   }
   
-  ffmpegCommand.push(output);
+  ffmpegCommand.push("-y", output);
   return ffmpegCommand;
 };
 
-const getMOVCommand = (
+// Helper function for other formats
+const getGenericCommand = (
   input: string,
   output: string,
   videoSettings: VideoInputSettings
 ) => {
-  const scale = videoSettings.quality === QualityType.High 
-    ? "-2:720" 
-    : videoSettings.quality === QualityType.Medium 
-      ? "-2:480" 
-      : "-2:360";
+  const getScale = (quality: QualityType) => {
+    const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
+    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+  };
 
-  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
+  const audioOptions = videoSettings.removeAudio ? ["-an"] : [
+    "-c:a", "aac",
+    "-b:a", "32k",
+    "-ac", "1",
+    "-ar", "22050"
+  ];
+
   return [
     "-i",
     input,
     "-c:v",
     "libx264",
-    "-preset",
-    "veryfast",
-    "-tune",
-    "fastdecode",
+    ...getBaseParams(),
     "-crf",
-    videoSettings.quality,
-    ...audioOptions,
+    "30",
     "-vf",
-    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
-    "-movflags",
-    "+faststart",
+    getScale(videoSettings.quality),
+    ...audioOptions,
+    "-y",
     output,
   ];
 };
 
-const getMKVCommand = (
-  input: string,
-  output: string,
-  videoSettings: VideoInputSettings
-) => {
-  const scale = videoSettings.quality === QualityType.High 
-    ? "-2:720" 
-    : videoSettings.quality === QualityType.Medium 
-      ? "-2:480" 
-      : "-2:360";
+const getMOVCommand = (input: string, output: string, videoSettings: VideoInputSettings) => 
+  getGenericCommand(input, output, videoSettings);
 
-  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
-  return [
-    "-i",
-    input,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-tune",
-    "fastdecode",
-    "-crf",
-    videoSettings.quality,
-    ...audioOptions,
-    "-vf",
-    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
-    output,
-  ];
-};
+const getMKVCommand = (input: string, output: string, videoSettings: VideoInputSettings) => 
+  getGenericCommand(input, output, videoSettings);
 
-const getAVICommand = (
-  input: string,
-  output: string,
-  videoSettings: VideoInputSettings
-) => {
-  const scale = videoSettings.quality === QualityType.High 
-    ? "-2:720" 
-    : videoSettings.quality === QualityType.Medium 
-      ? "-2:480" 
-      : "-2:360";
-
-  const audioOptions = videoSettings.removeAudio ? ["-an"] : ["-c:a", "aac", "-b:a", "128k"];
-  return [
-    "-i",
-    input,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-tune",
-    "fastdecode",
-    "-crf",
-    videoSettings.quality,
-    ...audioOptions,
-    "-vf",
-    `scale=${scale},trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
-    output,
-  ];
-};
-
-const getFLVCommand = (
-  input: string,
-  output: string,
-  videoSettings: VideoInputSettings
-) => {
-  const audioOptions = videoSettings.removeAudio ? [] : ["-c:a", "aac"];
-  const ffmpegCommand = [
-    "-i",
-    input,
-    "-c:v",
-    "libx264",
-    "-crf",
-    videoSettings.quality,
-    ...audioOptions,
-    "-vf",
-    `trim=start=${videoSettings.customStartTime}:end=${videoSettings.customEndTime}`,
-    output,
-  ];
-
-  return ffmpegCommand;
-};
+const getAVICommand = (input: string, output: string, videoSettings: VideoInputSettings) => 
+  getGenericCommand(input, output, videoSettings);

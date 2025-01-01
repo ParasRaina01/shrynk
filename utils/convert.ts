@@ -203,7 +203,18 @@ export default async function convertFile(
       await ffmpeg.exec(command);
       
       const data = await ffmpeg.readFile(output);
-      outputBlob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: `video/${videoSettings.videoType}` });
+      // Handle FFmpeg output data properly
+      let uint8Array: Uint8Array;
+      if (data instanceof Uint8Array) {
+        uint8Array = data;
+      } else if (typeof data === 'string') {
+        // Handle string data by converting to Uint8Array
+        uint8Array = new TextEncoder().encode(data);
+      } else {
+        // Handle ArrayBuffer or ArrayBufferLike
+        uint8Array = new Uint8Array(data as ArrayBufferLike);
+      }
+      outputBlob = new Blob([uint8Array], { type: `video/${videoSettings.videoType}` });
       url = URL.createObjectURL(outputBlob);
       
       await ffmpeg.deleteFile(fileName);

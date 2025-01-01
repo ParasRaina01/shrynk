@@ -127,6 +127,24 @@ class WorkerPool {
   }
 }
 
+// Helper function to convert FFmpeg output to Uint8Array
+function convertToUint8Array(data: any): Uint8Array {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer);
+  }
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data);
+  }
+  if (typeof data === 'string') {
+    return new TextEncoder().encode(data);
+  }
+  // If none of the above, assume it's a buffer-like object
+  return new Uint8Array(data);
+}
+
 export default async function convertFile(
   ffmpeg: FFmpeg,
   actionFile: FileActions,
@@ -145,7 +163,7 @@ export default async function convertFile(
     const duration = await getDuration(ffmpeg, fileName);
     await ffmpeg.deleteFile(fileName);
 
-    if (duration > SEGMENT_DURATION && file.size > 5 * 1024 * 1024) { // Process in parallel if video is > 5MB
+    if (duration > SEGMENT_DURATION && file.size > 5 * 1024 * 1024) {
       workerPool = new WorkerPool(MAX_WORKERS);
       const numSegments = Math.ceil(duration / SEGMENT_DURATION);
       const segments: Uint8Array[] = [];
@@ -163,7 +181,6 @@ export default async function convertFile(
           ? whatsappStatusCompressionCommand(fileName, segmentOutput)
           : customVideoCompressionCommand(fileName, segmentOutput, videoSettings);
 
-        // Add seek and duration parameters
         command.splice(2, 0, "-ss", start.toString(), "-t", segDuration.toString());
         
         const segmentPromise = workerPool.processSegment(
@@ -175,10 +192,8 @@ export default async function convertFile(
         segmentPromises.push(segmentPromise);
       }
 
-      // Wait for all segments to complete
       segments.push(...await Promise.all(segmentPromises));
 
-      // Concatenate segments
       const totalLength = segments.reduce((acc, segment) => acc + segment.length, 0);
       const finalData = new Uint8Array(totalLength);
       let offset = 0;
@@ -191,7 +206,6 @@ export default async function convertFile(
       outputBlob = new Blob([finalData], { type: `video/${videoSettings.videoType}` });
       url = URL.createObjectURL(outputBlob);
     } else {
-      // Process small files normally
       await ffmpeg.writeFile(fileName, await fetchFile(file));
       const command = videoSettings.twitterCompressionCommand
         ? twitterCompressionCommand(fileName, output)
@@ -203,18 +217,8 @@ export default async function convertFile(
       await ffmpeg.exec(command);
       
       const data = await ffmpeg.readFile(output);
-      // Handle FFmpeg output data properly
-      let uint8Array: Uint8Array;
-      if (data instanceof Uint8Array) {
-        uint8Array = data;
-      } else if (typeof data === 'string') {
-        // Handle string data by converting to Uint8Array
-        uint8Array = new TextEncoder().encode(data);
-      } else {
-        // Handle ArrayBuffer or ArrayBufferLike
-        uint8Array = new Uint8Array(data as ArrayBufferLike);
-      }
-      outputBlob = new Blob([uint8Array], { type: `video/${videoSettings.videoType}` });
+      const uint8Data = convertToUint8Array(data);
+      outputBlob = new Blob([uint8Data], { type: `video/${videoSettings.videoType}` });
       url = URL.createObjectURL(outputBlob);
       
       await ffmpeg.deleteFile(fileName);

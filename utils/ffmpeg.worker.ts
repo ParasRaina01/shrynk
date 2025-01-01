@@ -11,6 +11,24 @@ async function initFFmpeg() {
   return ffmpeg;
 }
 
+// Helper function to convert FileData to Uint8Array
+function convertToUint8Array(data: any): Uint8Array {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  if (ArrayBuffer.isView(data)) {
+    return new Uint8Array(data.buffer);
+  }
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data);
+  }
+  if (typeof data === 'string') {
+    return new TextEncoder().encode(data);
+  }
+  // If none of the above, assume it's a buffer-like object
+  return new Uint8Array(data);
+}
+
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
 
@@ -31,8 +49,9 @@ self.onmessage = async (e) => {
         // Execute command
         await instance.exec(command);
         
-        // Read output
+        // Read output and ensure it's Uint8Array
         const data = await instance.readFile(output);
+        const uint8Data = convertToUint8Array(data);
         
         // Cleanup
         await instance.deleteFile(input.name);
@@ -42,7 +61,7 @@ self.onmessage = async (e) => {
         self.postMessage({
           type: 'complete',
           payload: {
-            data: new Uint8Array(data as ArrayBuffer),
+            data: uint8Data,
             output
           }
         });

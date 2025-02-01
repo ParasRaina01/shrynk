@@ -18,7 +18,7 @@ Shrynk is a powerful, browser-based video compression tool that leverages WebAss
   - Adjustable video quality (High/Medium/Low)
   - Custom video trimming
   - Audio removal option
-  - Multiple output formats (MP4, MKV, MOV, AVI)
+  - Multiple output formats
 - **Real-Time Progress**: Live compression progress tracking
 - **Responsive UI**: Beautiful, modern interface built with Tailwind CSS
 
@@ -54,8 +54,8 @@ Shrynk is a powerful, browser-based video compression tool that leverages WebAss
 
 1. Drop or select your video file
 2. Choose compression settings:
-   - Select quality level
-   - Choose output format
+   - Select quality level (High/Medium/Low)
+   - Choose output format (MP4/MKV/MOV/AVI)
    - Set trim points (optional)
    - Toggle audio removal
 3. Click "Condense" to start compression
@@ -63,17 +63,37 @@ Shrynk is a powerful, browser-based video compression tool that leverages WebAss
 
 ## ⚙️ Technical Details
 
-- Uses FFmpeg.wasm for video processing
-- Implements efficient memory management
-- Automatic quality-based resolution scaling
-- Optimized encoding presets for faster processing
-- Cross-browser compatibility with modern browsers
+### Video Processing Pipeline
+- **Input Processing**:
+  - Format detection
+  - Codec validation
+  - Metadata extraction
+
+- **Compression Pipeline**:
+  - Resolution analysis
+  - Dynamic preset selection
+  - Two-pass scaling with aspect ratio preservation
+  - Smart bitrate allocation
+
+- **Output Optimization**:
+  - Format-specific optimizations
+  - Web-optimized flag for streaming
+  - Metadata preservation
+
+### Performance Optimizations
+- FFmpeg.wasm with WebAssembly for near-native performance
+- Efficient memory management and buffer handling
+- Dynamic thread allocation
+- Resolution-based preset selection
+- Optimized scaling algorithms
+- Smart chunk processing for large files
 
 ## 🔒 Privacy
 
 - All processing happens locally in the browser
 - No video data is ever sent to any server
 - No analytics or tracking implemented
+- Complete data isolation
 
 ## 📝 License
 
@@ -82,3 +102,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Areas for Improvement
+- GPU acceleration support
+- Parallel chunk processing
+- Advanced codec support (AV1, HEVC)
+- Machine learning-based quality optimization
+- WebAssembly SIMD optimization

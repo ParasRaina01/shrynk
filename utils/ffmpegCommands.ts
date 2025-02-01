@@ -1,29 +1,39 @@
 import { getFileExtension } from "./convert";
 import { VideoFormats, VideoInputSettings, QualityType } from "./types";
+const getBaseParams = (inputWidth?: number, inputHeight?: number) => {
+  const preset = inputWidth && inputHeight && (inputWidth * inputHeight) > (1280 * 720)
+    ? "faster" 
+    : "veryfast";
+  const maxrate = "1500k";
+  const bufsize = "3000k";
+  
+  return [
+    "-preset",
+    preset,
+    "-tune",
+    "film",
+    "-movflags",
+    "+faststart",
+    "-profile:v",
+    "high",
+    "-level",
+    "4.1", 
+    "-pix_fmt",
+    "yuv420p",
+    "-maxrate",
+    maxrate,
+    "-bufsize",
+    bufsize,
+    "-threads",
+    "0",
+    "-q:v",
+    "1"
+  ];
+};
 
-// Base compression parameters optimized for compression and reasonable speed
-const getBaseParams = () => [
-  "-preset",
-  "veryfast", // Balance between speed and compression
-  "-tune",
-  "film", // Better for general video content
-  "-movflags",
-  "+faststart",
-  "-profile:v",
-  "high",
-  "-level",
-  "4.0",
-  "-pix_fmt",
-  "yuv420p",
-  "-maxrate",
-  "1500k",
-  "-bufsize",
-  "2000k",
-  "-threads",
-  "0", // Use all available threads
-  "-q:v",
-  "1" // Maximum quality compression
-];
+// Optimized scale function that combines operations
+const getOptimizedScale = (targetWidth: number) => 
+  `scale='min(${targetWidth},iw)':'-2':flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2:force_original_aspect_ratio=decrease`;
 
 export const whatsappStatusCompressionCommand = (
   input: string,
@@ -35,17 +45,17 @@ export const whatsappStatusCompressionCommand = (
   "libx264",
   ...getBaseParams(),
   "-crf",
-  "32", // Higher CRF for more compression
+  "32",
   "-vf",
-  "scale=w='if(gt(iw,480),480,iw)':h='if(gt(ih,480),480,ih)':force_original_aspect_ratio=decrease",
+  getOptimizedScale(480),
   "-c:a",
   "aac",
   "-b:a",
-  "24k", // Lower audio bitrate
+  "24k",
   "-ac",
   "1",
   "-ar",
-  "22050", // Lower audio sampling rate
+  "22050",
   "-y",
   output,
 ];
@@ -59,7 +69,7 @@ export const twitterCompressionCommand = (input: string, output: string) => [
   "-crf",
   "30",
   "-vf",
-  "scale=w='if(gt(iw,720),720,iw)':h='if(gt(ih,720),720,ih)':force_original_aspect_ratio=decrease",
+  getOptimizedScale(720),
   "-c:a",
   "aac",
   "-b:a",
@@ -103,7 +113,7 @@ const getMP4toMP4Command = (
 ) => {
   const getScale = (quality: QualityType) => {
     const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
-    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+    return getOptimizedScale(width);
   };
 
   const getCRF = (quality: QualityType) => {
@@ -147,7 +157,7 @@ const getMP4Command = (
 ) => {
   const getScale = (quality: QualityType) => {
     const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
-    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2`;
   };
 
   const getCRF = (quality: QualityType) => {
@@ -200,7 +210,7 @@ const getGenericCommand = (
 ) => {
   const getScale = (quality: QualityType) => {
     const width = quality === QualityType.High ? 720 : quality === QualityType.Medium ? 480 : 360;
-    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease`;
+    return `scale=w='if(gt(iw,${width}),${width},iw)':h='if(gt(ih,${width}),${width},ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2`;
   };
 
   const audioOptions = videoSettings.removeAudio ? ["-an"] : [
